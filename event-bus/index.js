@@ -1,11 +1,13 @@
-import express from 'express';
-import axios from 'axios';
+const express = require('express');
+const axios = require('axios');
 
 const app = express();
 app.use(express.json());
 
 app.post('/events', (req, res) => {
     const event = req.body;
+
+    console.log('received event', event.type, JSON.stringify(event.data));
 
     axios.post('http://localhost:4000/events', event)
         .catch((err) => {
@@ -19,7 +21,9 @@ app.post('/events', (req, res) => {
         console.log(err.message);
     });;
 
-    console.log('received event', event.type);
+    axios.post('http://localhost:4003/events', event).catch((err) => {
+        console.log(err.message);
+    });;
 
     res.send({ status: 'OK' });
 });

@@ -7,6 +7,13 @@ app.use(cors());
 
 const posts = {};
 
+const postsWithoutRejectedComments = () => {
+    return Object.values(posts).map(post => {
+        post.comments = post.comments.filter(comment => comment.status !== 'REJECTED');
+        return post;
+    })
+}
+
 const handlePostCreation = (data) => {
     console.log(`Im handling a new post!`);
 
@@ -18,13 +25,22 @@ const handlePostCreation = (data) => {
 const handleCommentCreation = (data) => {
     console.log(`Im handling a new comment!`);
 
-    const { id, content, postId } = data;
+    const { id, content, status, postId } = data;
 
-    posts[postId].comments.push({ id, content });
+    posts[postId].comments.push({ id, content, status });
+}
+
+const handleCommentUpdated = (data) => {
+    console.log(`Im handling a comment update!`);
+
+    const { id, content, status, postId } = data;
+
+    posts[postId].comments = posts[postId].comments
+        .map(comment => comment.id === id ? { id, content, status } : comment);
 }
 
 app.get('/posts', (req, res) => {
-    res.send(posts);
+    res.send(postsWithoutRejectedComments());
 });
 
 app.post('/events', (req, res) => {
@@ -40,11 +56,15 @@ app.post('/events', (req, res) => {
             handleCommentCreation(event.data);
             break;
         }
+        case 'CommentUpdated': {
+            handleCommentUpdated(event.data);
+            break;
+        }
         default:
             console.log(`Received event ${event.type} but no handler available for it`)
     }
 
-    console.log('new posts obj', JSON.stringify(posts))
+    // console.log('new posts obj', JSON.stringify(posts))
 
     res.send({ status: 'OK' });
 });
