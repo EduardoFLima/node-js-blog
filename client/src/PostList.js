@@ -9,7 +9,7 @@ const PostList = () => {
     const fetchPosts = async () => {
         const res = await axios.get('http://localhost:4002/posts')
 
-        if (res.status == 200) {
+        if (res.status === 200) {
             setPosts(res.data)
         }
     };
