@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
 app.use(express.json());
@@ -7,45 +8,27 @@ app.use(cors());
 
 const posts = {};
 
-const postsWithoutRejectedComments = () => {
-    return Object.values(posts).map(post => {
-        post.comments = post.comments.filter(comment => comment.status !== 'REJECTED');
-        return post;
-    })
-}
-
 const handlePostCreation = (data) => {
-    console.log(`Im handling a new post!`);
-
     const { id, title } = data;
 
     posts[id] = { id, title, comments: [] };
 }
 
 const handleCommentCreation = (data) => {
-    console.log(`Im handling a new comment!`);
-
     const { id, content, status, postId } = data;
 
     posts[postId].comments.push({ id, content, status });
 }
 
 const handleCommentUpdated = (data) => {
-    console.log(`Im handling a comment update!`);
-
     const { id, content, status, postId } = data;
 
     posts[postId].comments = posts[postId].comments
         .map(comment => comment.id === id ? { id, content, status } : comment);
 }
 
-app.get('/posts', (req, res) => {
-    res.send(postsWithoutRejectedComments());
-});
-
-app.post('/events', (req, res) => {
-    const event = req.body;
-    console.log('received event', event.type)
+const processEvent = (event) => {
+    console.log('received event', event.type);
 
     switch (event.type) {
         case 'PostCreated': {
@@ -61,14 +44,49 @@ app.post('/events', (req, res) => {
             break;
         }
         default:
-            console.log(`Received event ${event.type} but no handler available for it`)
+            console.log(`Received event ${event.type} but no handler available for it`);
     }
+}
+
+const loadEvents = async () => {
+    return axios.get('http://localhost:4005/events')
+    .then(async res => {
+        const events = res.data;
+        
+        console.log("... recovering events ... ", events.map(({id, type}) => { return { id, type } }));
+
+        events.forEach(async event => {
+            await processEvent(event);
+        });
+    })
+    .catch((err) => {
+        console.log(err.message);
+    });
+};
+
+const postsWithoutRejectedComments = () => {
+    return Object.values(posts).map(post => {
+        post.comments = post.comments.filter(comment => comment.status !== 'REJECTED');
+        return post;
+    })
+}
+
+app.get('/posts', (req, res) => {
+    res.send(postsWithoutRejectedComments());
+});
+
+app.post('/events', (req, res) => {
+    const event = req.body;
+    
+    processEvent(event);
 
     // console.log('new posts obj', JSON.stringify(posts))
 
     res.send({ status: 'OK' });
 });
 
-app.listen(4002, () => {
+app.listen(4002, async () => {
     console.log('listening on 4002');
+
+    await loadEvents();
 });
